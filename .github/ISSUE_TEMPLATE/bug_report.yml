@@ -1,0 +1,15 @@
+name: Bug report
+description: Report a reproducible problem without attaching confidential PDFs.
+body:
+  - type: textarea
+    id: description
+    attributes: {label: Description}
+    validations: {required: true}
+  - type: input
+    id: windows
+    attributes: {label: Windows version}
+    validations: {required: true}
+  - type: textarea
+    id: steps
+    attributes: {label: Reproduction steps}
+    validations: {required: true}
