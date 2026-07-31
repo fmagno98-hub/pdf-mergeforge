@@ -13,7 +13,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["ghostscript", "verapdf"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -22,7 +22,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="PDF MergeForge",
+    name="PDF-MergeForge-v1.1.0-Windows-x64",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -37,5 +37,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="PDF MergeForge onedir",
+    name="PDF-MergeForge-v1.1.0-Windows-x64-onedir",
 )

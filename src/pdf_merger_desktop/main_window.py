@@ -3,8 +3,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, Qt, QThread
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QPixmap
+from PySide6.QtCore import QSettings, Qt, QThread, QUrl
+from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -27,6 +27,13 @@ from .config import APP_NAME, resource_path
 from .file_item import PdfFileItem
 from .merge_worker import MergeWorker
 from .pdf_service import validate_pdf
+from .pdfa_worker import PdfAWorker
+from .services.ghostscript_service import (
+    GhostscriptError,
+    GhostscriptNotFoundError,
+    discover_ghostscript,
+    validate_executable,
+)
 from .utilities.formatting import format_bytes
 from .utilities.natural_sort import natural_key
 from .utilities.paths import ensure_pdf_suffix, normalized_windows_path
@@ -64,7 +71,7 @@ class MainWindow(QMainWindow):
         self.items: list[PdfFileItem] = []
         self.last_output: Path | None = None
         self.thread: QThread | None = None
-        self.worker: MergeWorker | None = None
+        self.worker: MergeWorker | PdfAWorker | None = None
         self.merging = False
         self.setWindowTitle(APP_NAME)
         self.resize(1040, 680)
@@ -230,6 +237,12 @@ class MainWindow(QMainWindow):
         self.merge_button = self._button("Merge PDF files", self.choose_output, True)
         self.merge_button.setMinimumSize(250, 54)
         self.merge_button.setToolTip("Choose an output file and start merging (Ctrl+M)")
+        self.pdfa_button = self._button("Export as PDF/A-1b", self.choose_pdfa_output)
+        self.pdfa_button.setObjectName("pdfa")
+        self.pdfa_button.setMinimumSize(250, 54)
+        self.pdfa_button.setToolTip(
+            "Create an archival PDF/A-1b using a separately installed Ghostscript"
+        )
         self.cancel_button = self._button("Cancel", self.cancel_merge)
         self.cancel_button.setObjectName("danger")
         self.open_button = self._button("Open PDF", self.open_pdf)
@@ -239,7 +252,10 @@ class MainWindow(QMainWindow):
         result_buttons.addWidget(self.open_button)
         result_buttons.addWidget(self.folder_button)
         action_layout.addLayout(result_buttons, 0, 1, 1, 2)
-        action_layout.addWidget(self.merge_button, 1, 1, 2, 2)
+        export_buttons = QHBoxLayout()
+        export_buttons.addWidget(self.merge_button, 2)
+        export_buttons.addWidget(self.pdfa_button, 1)
+        action_layout.addLayout(export_buttons, 1, 1, 2, 2)
 
         layout.addWidget(header)
         layout.addWidget(workspace, 1)
@@ -288,6 +304,11 @@ class MainWindow(QMainWindow):
             QPushButton#primary:hover { background: #FF633D; border-color: #FF9A78; }
             QPushButton#primary:disabled { color: #6E7E92; background: #142136;
                 border-color: #24354D; }
+            QPushButton#pdfa { color: #061328; background: #30D9EB; border-color: #73F1F6;
+                font-size: 14px; font-weight: 700; }
+            QPushButton#pdfa:hover { background: #63E7F1; border-color: #B1FAFC; }
+            QPushButton#pdfa:disabled { color: #5D708A; background: #0D1A2D;
+                border-color: #1A2A40; }
             QPushButton#accent { color: #061328; background: #25D5E5; border-color: #63EFF5; }
             QPushButton#accent:hover { background: #51E4EF; border-color: #9CF7FA; }
             QPushButton#danger { color: #FF9B8A; }
@@ -307,6 +328,7 @@ class MainWindow(QMainWindow):
             ("Alt+Up", self.move_up),
             ("Alt+Down", self.move_down),
             ("Ctrl+M", self.choose_output),
+            ("Ctrl+Shift+M", self.choose_pdfa_output),
             ("Escape", self.cancel_merge),
             ("Ctrl+Q", self.close),
         ):
@@ -445,10 +467,140 @@ class MainWindow(QMainWindow):
         self.thread.finished.connect(self._thread_finished)
         self.thread.start()
 
+    def choose_pdfa_output(self) -> None:
+        if self.merging or not self.items:
+            return
+        start = str(
+            Path(self.settings.value("last_save_dir", str(Path.home())))
+            / "merged_document_PDFA-1b.pdf"
+        )
+        raw, _ = QFileDialog.getSaveFileName(self, "Export as PDF/A-1b", start, "PDF files (*.pdf)")
+        if not raw:
+            return
+        output = ensure_pdf_suffix(raw)
+        if normalized_windows_path(output) in {item.normalized_path for item in self.items}:
+            QMessageBox.warning(self, "Invalid output", "The output cannot overwrite a source PDF.")
+            return
+        if (
+            output.exists()
+            and QMessageBox.question(self, "Overwrite file", f"Replace {output.name}?")
+            != QMessageBox.StandardButton.Yes
+        ):
+            return
+        installation = self._ensure_ghostscript()
+        if installation is None:
+            return
+        self.settings.setValue("last_save_dir", str(output.parent))
+        self._start_pdfa(output)
+
+    def _ensure_ghostscript(self):
+        saved = self.settings.value("external_tools/ghostscript_path", "")
+        try:
+            installation = discover_ghostscript(saved or None)
+            if saved and str(installation.executable_path) != str(Path(saved).resolve()):
+                self.settings.remove("external_tools/ghostscript_path")
+            return installation
+        except GhostscriptNotFoundError:
+            dialog = QMessageBox(self)
+            dialog.setIcon(QMessageBox.Icon.Information)
+            dialog.setWindowTitle("Ghostscript required")
+            dialog.setText("PDF/A-1b export requires a separately installed copy of Ghostscript.")
+            dialog.setInformativeText(
+                "Ghostscript is not included with PDF MergeForge and is distributed under its "
+                "own licence. Normal PDF merging remains available without Ghostscript."
+            )
+            download = dialog.addButton("Download Ghostscript", QMessageBox.ButtonRole.ActionRole)
+            locate = dialog.addButton("Locate gswin64c.exe", QMessageBox.ButtonRole.ActionRole)
+            retry = dialog.addButton("Check again", QMessageBox.ButtonRole.ActionRole)
+            dialog.addButton(QMessageBox.StandardButton.Cancel)
+            dialog.exec()
+            clicked = dialog.clickedButton()
+            if clicked is download:
+                QDesktopServices.openUrl(QUrl("https://ghostscript.com/releases/gsdnld.html"))
+                return None
+            if clicked is locate:
+                raw, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Locate 64-bit Ghostscript",
+                    "C:\\Program Files\\gs",
+                    "Ghostscript console (gswin64c.exe)",
+                )
+                if not raw:
+                    return None
+                try:
+                    installation = validate_executable(Path(raw))
+                except GhostscriptError as exc:
+                    QMessageBox.warning(self, "Invalid Ghostscript", str(exc))
+                    return None
+                self.settings.setValue(
+                    "external_tools/ghostscript_path", str(installation.executable_path)
+                )
+                return installation
+            if clicked is retry:
+                try:
+                    return discover_ghostscript()
+                except GhostscriptNotFoundError:
+                    QMessageBox.information(
+                        self, "Ghostscript", "Ghostscript is still not available."
+                    )
+            return None
+
+    def _start_pdfa(self, output: Path) -> None:
+        invalid = [validate_pdf(item.path) for item in self.items]
+        bad = next((item for item in invalid if not item.is_valid), None)
+        if bad:
+            QMessageBox.warning(self, "Cannot export PDF/A-1b", f"{bad.name}: {bad.error}")
+            return
+        self.merging = True
+        self.last_output = None
+        self.progress.setRange(0, 0)
+        self.progress.show()
+        self._refresh()
+        self.thread = QThread(self)
+        self.worker = PdfAWorker(
+            [item.path for item in self.items],
+            output,
+            str(self.settings.value("external_tools/ghostscript_path", "")),
+            str(self.settings.value("external_tools/verapdf_path", "")),
+        )
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.stage.connect(self._pdfa_stage)
+        self.worker.completed.connect(self._pdfa_completed)
+        self.worker.failed.connect(self._pdfa_failed)
+        self.worker.cancelled.connect(self._merge_cancelled)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self._thread_finished)
+        self.thread.start()
+
+    def _pdfa_stage(self, stage: str) -> None:
+        self.statusBar().showMessage(stage)
+
+    def _pdfa_completed(self, result) -> None:
+        self.last_output = result.output_path
+        verification = (
+            f"Validated with veraPDF {result.external.validator_version}."
+            if result.external.available
+            else "Baseline checks passed; veraPDF independent validation was not available."
+        )
+        QMessageBox.information(
+            self,
+            "PDF/A-1b export completed",
+            f"Created: {result.output_path.name}\n{result.output_path}\n\n"
+            f"{result.pages} pages\nGhostscript {result.ghostscript.version_text}\n{verification}",
+        )
+        self.statusBar().showMessage("PDF/A-1b export completed")
+
+    def _pdfa_failed(self, message: str) -> None:
+        logging.error("PDF/A export failed: %s", message)
+        QMessageBox.critical(self, "PDF/A-1b export failed", message)
+        self.statusBar().showMessage("PDF/A-1b export failed")
+
     def cancel_merge(self) -> None:
         if self.worker and self.merging:
             self.worker.request_cancel()
-            self.statusBar().showMessage("Cancelling after the current PDF...")
+            self.statusBar().showMessage("Cancelling operation...")
 
     def _merge_progress(self, current: int, total: int, name: str) -> None:
         self.progress.setValue(current)
@@ -516,6 +668,7 @@ class MainWindow(QMainWindow):
             self.up_button,
             self.down_button,
             self.merge_button,
+            self.pdfa_button,
         ):
             button.setEnabled(not self.merging)
         self.remove_button.setEnabled(selected and not self.merging)
@@ -523,6 +676,7 @@ class MainWindow(QMainWindow):
         self.up_button.setEnabled(selected and not self.merging)
         self.down_button.setEnabled(selected and not self.merging)
         self.merge_button.setEnabled(valid and not self.merging)
+        self.pdfa_button.setEnabled(valid and not self.merging)
         self.cancel_button.setEnabled(self.merging)
         self.open_button.setEnabled(self.last_output is not None and not self.merging)
         self.folder_button.setEnabled(self.last_output is not None and not self.merging)
@@ -530,7 +684,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.merging:
             QMessageBox.information(
-                self, "Merge in progress", "Cancel the operation before closing."
+                self, "Operation in progress", "Cancel the operation before closing."
             )
             event.ignore()
             return
