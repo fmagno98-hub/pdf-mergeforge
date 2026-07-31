@@ -13,6 +13,7 @@ from .ghostscript_service import (
     build_pdfa_command,
     discover_ghostscript,
     locate_pdfa_resources,
+    prepare_pdfa_definition,
 )
 from .pdfa_validation_service import PdfABaselineValidationResult, validate_pdfa_baseline
 from .verapdf_service import ExternalValidationResult, discover_verapdf, validate_with_verapdf
@@ -100,7 +101,7 @@ def export_pdfa_1b(
         if progress:
             progress("Detecting Ghostscript")
         ghostscript = discover_gs(saved_ghostscript)
-        resources = locate_pdfa_resources(ghostscript)
+        resources = prepare_pdfa_definition(locate_pdfa_resources(ghostscript), work)
         candidate = work / "candidate-pdfa-1b.pdf"
         command = build_pdfa_command(ghostscript, resources, merged, candidate)
         if progress:

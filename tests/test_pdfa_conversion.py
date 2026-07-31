@@ -27,7 +27,9 @@ def fake_installation(tmp_path: Path) -> GhostscriptInstallation:
     exe.parent.mkdir(parents=True)
     exe.touch()
     (root / "lib").mkdir()
-    (root / "lib" / "PDFA_def.ps").touch()
+    (root / "lib" / "PDFA_def.ps").write_text(
+        "/ICCProfile (srgb.icc) % Customise\ndef\n", encoding="latin-1"
+    )
     (root / "iccprofiles").mkdir()
     (root / "iccprofiles" / "srgb.icc").touch()
     return GhostscriptInstallation(exe, (10, 7, 1), "10.7.1", "test")

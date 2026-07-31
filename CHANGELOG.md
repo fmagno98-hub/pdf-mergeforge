@@ -16,6 +16,12 @@
 - Prepared local application and build metadata for version 1.1.0.
 - Updated bundled pypdf declaration to 6.14.2.
 
+### Fixed
+
+- Allow the detected external sRGB profile through modern Ghostscript `SAFER` rules and
+  create an ephemeral PDF/A definition with its absolute path, ensuring that the
+  generated PDF/A-1b contains a real OutputIntent.
+
 ## 1.0.0 - 2026-07-27
 
 - Branded release of PDF MergeForge with application icon, in-app logo, repository artwork,

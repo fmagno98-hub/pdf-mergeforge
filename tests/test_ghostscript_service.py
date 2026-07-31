@@ -11,6 +11,7 @@ from pdf_merger_desktop.services.ghostscript_service import (
     build_pdfa_command,
     discover_ghostscript,
     parse_version,
+    prepare_pdfa_definition,
     validate_executable,
 )
 
@@ -105,5 +106,22 @@ def test_command_is_strict_pdfa_argument_list(tmp_path: Path) -> None:
     assert command[0] == str(exe)
     assert "-dPDFA=1" in command and "-dPDFACompatibilityPolicy=2" in command
     assert "-sDEVICE=pdfwrite" in command and "-dCompatibilityLevel=1.4" in command
+    assert f"--permit-file-read={resources.rgb_profile}" in command
     assert str(source) == command[-1] and str(resources.pdfa_definition) == command[-2]
     assert f"-sOutputFile={output}" in command
+
+
+def test_runtime_definition_uses_absolute_external_profile(tmp_path: Path) -> None:
+    installed = tmp_path / "Ghostscript" / "lib" / "PDFA_def.ps"
+    installed.parent.mkdir(parents=True)
+    installed.write_text("/ICCProfile (srgb.icc) % Customise\ndef\n", encoding="latin-1")
+    profile = tmp_path / "Ghostscript" / "iccprofiles" / "sRGB profile.icc"
+    profile.parent.mkdir()
+    profile.touch()
+    work = tmp_path / "work"
+    work.mkdir()
+    prepared = prepare_pdfa_definition(GhostscriptResources(installed, profile), work)
+    text = prepared.pdfa_definition.read_text(encoding="latin-1")
+    assert f"/ICCProfile ({profile.as_posix()}) def" in text
+    assert prepared.pdfa_definition.parent == work
+    assert prepared.rgb_profile == profile

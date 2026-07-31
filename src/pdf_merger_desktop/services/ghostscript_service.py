@@ -103,19 +103,14 @@ def discover_ghostscript(
     path_match = which("gswin64c.exe")
     if path_match:
         candidates.append((Path(path_match), "PATH"))
-    roots = list(
-        program_files
-        or filter(
-            None,
-            map(
-                lambda v: Path(v) if v else None,
-                (
-                    os.getenv("PROGRAMFILES"),
-                    os.getenv("PROGRAMW6432"),
-                ),
-            ),
-        )
+    default_roots = filter(
+        None,
+        map(
+            lambda value: Path(value) if value else None,
+            (os.getenv("PROGRAMFILES"), os.getenv("PROGRAMW6432")),
+        ),
     )
+    roots = list(default_roots if program_files is None else program_files)
     candidates.extend((path, "Program Files") for path in _program_files_candidates(roots))
     valid: list[GhostscriptInstallation] = []
     seen: set[str] = set()
@@ -151,6 +146,36 @@ def locate_pdfa_resources(installation: GhostscriptInstallation) -> GhostscriptR
     return GhostscriptResources(definition, profile)
 
 
+def prepare_pdfa_definition(
+    resources: GhostscriptResources, work_directory: Path
+) -> GhostscriptResources:
+    """Create an ephemeral definition that points at the external ICC profile.
+
+    Ghostscript's installed sample normally refers to ``srgb.icc`` by a relative
+    name. Under modern ``SAFER`` rules that lookup can fail even when an include
+    directory is supplied. The runtime copy is never distributed and is deleted
+    with the conversion workspace.
+    """
+    try:
+        definition = resources.pdfa_definition.read_text(encoding="latin-1")
+    except OSError as exc:
+        raise GhostscriptResourceError("The Ghostscript PDF/A definition is not readable.") from exc
+    profile = resources.rgb_profile.as_posix().replace("(", r"\(").replace(")", r"\)")
+    patched, replacements = re.subn(
+        r"/ICCProfile\s*\([^)]*\)\s*(?:%[^\r\n]*)?\s*def",
+        f"/ICCProfile ({profile}) def",
+        definition,
+        count=1,
+    )
+    if replacements != 1:
+        raise GhostscriptResourceError(
+            "The installed Ghostscript PDF/A definition has an unsupported format."
+        )
+    runtime_definition = work_directory / "PDFA_def-runtime.ps"
+    runtime_definition.write_text(patched, encoding="latin-1")
+    return GhostscriptResources(runtime_definition, resources.rgb_profile)
+
+
 def build_pdfa_command(
     installation: GhostscriptInstallation,
     resources: GhostscriptResources,
@@ -164,6 +189,7 @@ def build_pdfa_command(
         "-dBATCH",
         "-dNOPAUSE",
         "-dSAFER",
+        f"--permit-file-read={resources.rgb_profile}",
         "-dCompatibilityLevel=1.4",
         "-sDEVICE=pdfwrite",
         "-sColorConversionStrategy=RGB",
