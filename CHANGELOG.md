@@ -9,6 +9,8 @@
 - Strict external conversion, deterministic cleanup, cancellation, and atomic output.
 - PDF/A baseline validation for version, encryption, page count, XMP, and OutputIntent.
 - Optional independent veraPDF PDF/A-1b validation.
+- Windows-aware veraPDF discovery, safe `verapdf.bat` execution, structured JSON report
+  parsing, explicit validation states, External tools controls, and Validate now.
 - PDF/A documentation, troubleshooting, and packaging safeguards.
 
 ### Changed

@@ -57,6 +57,14 @@ independent PDF/A-1b check. Keep the original documents: conversion can flatten
 transparency, alter unsupported features or rendering, and normally invalidates digital
 signatures. PDF/A conformance does not guarantee acceptance by every authority.
 
+veraPDF remains optional and external. Install it from the [official veraPDF
+releases](https://software.verapdf.org/releases/), open **External tools**, and select
+its official `verapdf.bat` launcher. **Validate now** checks the most recently created
+PDF without repeating conversion. **Passed** means independent validation succeeded,
+**Not performed** means the optional validator was not detected, and **Failed** means
+veraPDF reported non-conformance. Baseline checks are safeguards, not a substitute for
+independent standards validation.
+
 See [docs/PDF_A_1B.md](docs/PDF_A_1B.md) for setup, limitations, and troubleshooting.
 
 ## Development

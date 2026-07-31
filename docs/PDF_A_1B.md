@@ -47,6 +47,19 @@ diagnostics but are not equivalent to standards validation. A successful veraPDF
 PDF/A-1b result gives stronger technical evidence, but the app never calls the document
 “certified”.
 
+Install veraPDF separately from its official release page. On Windows, open **External
+tools**, choose **Locate veraPDF**, and select `verapdf.bat`. Custom paths containing
+spaces or Unicode are supported. **Check again** repeats discovery; **Validate now**
+checks the last export with profile `1b` and a structured JSON report without converting
+it again.
+
+- **Passed:** independent veraPDF PDF/A-1b validation succeeded.
+- **Not performed:** baseline checks passed but optional veraPDF was not detected.
+- **Failed:** veraPDF explicitly reported non-conformance.
+
+The batch launcher runs locally through Windows `cmd.exe` using an argument list,
+`shell=False`, a hidden console, and a timeout. PDFs and reports are never sent online.
+
 ## Limitations and preservation advice
 
 PDF/A-1 may require transparency flattening or removal/conversion of JavaScript,

@@ -26,8 +26,9 @@ The MIT License of PDF MergeForge does not apply to Ghostscript.
 ## veraPDF
 
 PDF MergeForge can optionally invoke a separately installed copy of veraPDF for
-independent PDF/A validation. veraPDF and its Java runtime are not bundled or
-redistributed with PDF MergeForge and remain subject to their own licences. The MIT
+independent PDF/A validation. veraPDF, its launcher, JAR files, profiles, configuration,
+and Java runtime are not bundled or redistributed with PDF MergeForge and remain
+subject to their own licences. The MIT
 License of PDF MergeForge does not apply to veraPDF.
 
 - Product and downloads: https://software.verapdf.org/

@@ -35,4 +35,8 @@ def test_runtime_contains_no_remote_endpoints() -> None:
     source_root = Path(__file__).resolve().parents[1] / "src" / "pdf_merger_desktop"
     combined = "\n".join(path.read_text(encoding="utf-8") for path in source_root.rglob("*.py"))
     endpoints = re.findall(r"https?://[^\"')\s]+", combined)
-    assert endpoints == ["https://ghostscript.com/releases/gsdnld.html"]
+    assert endpoints == [
+        "https://ghostscript.com/releases/gsdnld.html",
+        "https://software.verapdf.org/releases/",
+        "https://software.verapdf.org/releases/",
+    ]

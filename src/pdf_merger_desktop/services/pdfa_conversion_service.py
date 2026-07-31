@@ -120,11 +120,21 @@ def export_pdfa_1b(
         if progress:
             progress("Validating with veraPDF")
         external = validate_with_verapdf(
-            discover_verapdf(saved_verapdf), candidate, work / "verapdf-report.xml"
+            discover_verapdf(saved_verapdf), candidate, work / "verapdf-report.json"
         )
-        if external.available and not external.compliant:
+        if external.available and external.compliant is None:
+            raise PdfAConversionError(
+                "veraPDF validation was inconclusive: "
+                + "; ".join(external.parse_errors or ("the structured report was invalid",))
+            )
+        if external.available and external.compliant is False:
             raise PdfAConversionError(
                 "veraPDF reported that the document is not PDF/A-1b compliant."
+                + (
+                    " Failed rules: " + ", ".join(external.failed_rules[:5])
+                    if external.failed_rules
+                    else ""
+                )
             )
         if cancelled():
             raise PdfAConversionCancelled("PDF/A export was cancelled.")

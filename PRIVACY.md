@@ -16,6 +16,10 @@ PDF MergeForge processes documents entirely on the user's Windows computer.
 - If available, executes a separately installed veraPDF validator locally.
 - Stores only manually selected external-tool paths in local `QSettings`.
 
+Ghostscript and veraPDF operate on local files through locally installed command-line
+applications. PDF MergeForge does not upload documents to Ghostscript, Artifex,
+veraPDF, or any other server.
+
 ## What the application does not do
 
 - No uploads and no cloud processing.

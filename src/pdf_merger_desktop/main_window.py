@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import QSettings, Qt, QThread, QUrl
@@ -33,6 +34,13 @@ from .services.ghostscript_service import (
     GhostscriptNotFoundError,
     discover_ghostscript,
     validate_executable,
+)
+from .services.verapdf_service import (
+    VeraPdfError,
+    VeraPdfInvalidInstallationError,
+    discover_verapdf,
+    validate_launcher,
+    validate_with_verapdf,
 )
 from .utilities.formatting import format_bytes
 from .utilities.natural_sort import natural_key
@@ -135,6 +143,9 @@ class MainWindow(QMainWindow):
         brand_copy.addLayout(badge_row)
         brand_row.addWidget(logo)
         brand_row.addLayout(brand_copy, 1)
+        tools_button = self._button("External tools", self.show_external_tools)
+        tools_button.setToolTip("Check Ghostscript and veraPDF installations")
+        brand_row.addWidget(tools_button)
 
         # File workspace card
         workspace = QFrame()
@@ -551,6 +562,13 @@ class MainWindow(QMainWindow):
         if bad:
             QMessageBox.warning(self, "Cannot export PDF/A-1b", f"{bad.name}: {bad.error}")
             return
+        saved_verapdf = str(self.settings.value("external_tools/verapdf_path", ""))
+        detected_verapdf = discover_verapdf(saved_verapdf or None)
+        if saved_verapdf and (
+            detected_verapdf is None
+            or detected_verapdf.launcher_path != Path(saved_verapdf).resolve()
+        ):
+            self.settings.remove("external_tools/verapdf_path")
         self.merging = True
         self.last_output = None
         self.progress.setRange(0, 0)
@@ -579,18 +597,133 @@ class MainWindow(QMainWindow):
 
     def _pdfa_completed(self, result) -> None:
         self.last_output = result.output_path
-        verification = (
-            f"Validated with veraPDF {result.external.validator_version}."
-            if result.external.available
-            else "Baseline checks passed; veraPDF independent validation was not available."
-        )
-        QMessageBox.information(
-            self,
-            "PDF/A-1b export completed",
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Icon.Information)
+        dialog.setWindowTitle("PDF/A-1b export completed")
+        if result.external.available:
+            status = (
+                "Baseline checks: Passed\n"
+                "Independent validation: Passed\n"
+                f"Validator: veraPDF {result.external.validator_version}\n"
+                "Profile: PDF/A-1b"
+            )
+            dialog.setText("PDF/A-1b export completed and independently validated.")
+        else:
+            status = (
+                "Baseline checks: Passed\n"
+                "Independent validation: Not performed\n"
+                "Reason: veraPDF was not detected"
+            )
+            dialog.setText("PDF/A-1b export completed.")
+            locate = dialog.addButton("Locate veraPDF", QMessageBox.ButtonRole.ActionRole)
+            download = dialog.addButton("Download veraPDF", QMessageBox.ButtonRole.ActionRole)
+            validate_now = dialog.addButton("Validate now", QMessageBox.ButtonRole.ActionRole)
+            validate_now.setEnabled(
+                discover_verapdf(self.settings.value("external_tools/verapdf_path", "")) is not None
+            )
+        dialog.setInformativeText(
             f"Created: {result.output_path.name}\n{result.output_path}\n\n"
-            f"{result.pages} pages\nGhostscript {result.ghostscript.version_text}\n{verification}",
+            f"Pages: {result.pages}\nGhostscript: {result.ghostscript.version_text}\n\n{status}"
         )
+        dialog.addButton(QMessageBox.StandardButton.Ok)
+        dialog.exec()
+        if not result.external.available:
+            if dialog.clickedButton() is locate and self._locate_verapdf():
+                self._validate_last_pdfa()
+            elif dialog.clickedButton() is download:
+                QDesktopServices.openUrl(QUrl("https://software.verapdf.org/releases/"))
+            elif dialog.clickedButton() is validate_now:
+                self._validate_last_pdfa()
         self.statusBar().showMessage("PDF/A-1b export completed")
+
+    def _locate_verapdf(self) -> bool:
+        raw, _ = QFileDialog.getOpenFileName(
+            self, "Locate veraPDF", str(Path.home()), "veraPDF launcher (verapdf.bat)"
+        )
+        if not raw:
+            return False
+        try:
+            installation = validate_launcher(Path(raw), "manual selection")
+        except VeraPdfInvalidInstallationError as exc:
+            QMessageBox.warning(self, "Invalid veraPDF", str(exc))
+            return False
+        self.settings.setValue("external_tools/verapdf_path", str(installation.launcher_path))
+        return True
+
+    def _validate_last_pdfa(self) -> None:
+        if not self.last_output or not self.last_output.is_file():
+            QMessageBox.warning(self, "Validate PDF/A-1b", "No recently created PDF is available.")
+            return
+        saved = self.settings.value("external_tools/verapdf_path", "")
+        installation = discover_verapdf(saved or None)
+        if installation is None:
+            QMessageBox.information(
+                self, "veraPDF not detected", "Locate verapdf.bat and try again."
+            )
+            return
+        try:
+            with tempfile.TemporaryDirectory(prefix="pdf-mergeforge-verapdf-") as raw:
+                result = validate_with_verapdf(
+                    installation, self.last_output, Path(raw) / "verapdf-report.json"
+                )
+        except VeraPdfError as exc:
+            QMessageBox.critical(self, "veraPDF could not run", str(exc))
+            return
+        if result.compliant:
+            QMessageBox.information(
+                self,
+                "Independent validation passed",
+                "Independent validation: Passed\n"
+                f"Validator: veraPDF {result.validator_version}\n"
+                "Profile: PDF/A-1b",
+            )
+        else:
+            QMessageBox.critical(
+                self,
+                "Independent validation failed",
+                "Independent validation: Failed\n"
+                f"Validator: veraPDF {result.validator_version}\nProfile: PDF/A-1b\n"
+                + (
+                    "Failed rules: " + ", ".join(result.failed_rules[:5])
+                    if result.failed_rules
+                    else result.summary
+                ),
+            )
+
+    def show_external_tools(self) -> None:
+        try:
+            ghostscript = discover_ghostscript(
+                self.settings.value("external_tools/ghostscript_path", "") or None
+            )
+            gs_status = (
+                f"Detected\nVersion: {ghostscript.version_text}\n"
+                f"Path: {ghostscript.executable_path}"
+            )
+        except GhostscriptError as exc:
+            gs_status = f"Not detected\n{exc}"
+        vera = discover_verapdf(self.settings.value("external_tools/verapdf_path", "") or None)
+        vera_status = (
+            f"Detected\nVersion: {vera.version}\nPath: {vera.launcher_path}"
+            if vera
+            else "Not detected (optional)"
+        )
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("External tools")
+        dialog.setText(f"Ghostscript\n{gs_status}\n\nveraPDF\n{vera_status}")
+        locate = dialog.addButton("Locate veraPDF", QMessageBox.ButtonRole.ActionRole)
+        check = dialog.addButton("Check again", QMessageBox.ButtonRole.ActionRole)
+        download = dialog.addButton("Download veraPDF", QMessageBox.ButtonRole.ActionRole)
+        clear = dialog.addButton("Remove veraPDF path", QMessageBox.ButtonRole.ActionRole)
+        dialog.addButton(QMessageBox.StandardButton.Close)
+        dialog.exec()
+        if dialog.clickedButton() is locate:
+            self._locate_verapdf()
+        elif dialog.clickedButton() is check:
+            self.show_external_tools()
+        elif dialog.clickedButton() is download:
+            QDesktopServices.openUrl(QUrl("https://software.verapdf.org/releases/"))
+        elif dialog.clickedButton() is clear:
+            self.settings.remove("external_tools/verapdf_path")
 
     def _pdfa_failed(self, message: str) -> None:
         logging.error("PDF/A export failed: %s", message)
