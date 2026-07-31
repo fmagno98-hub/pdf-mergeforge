@@ -1,9 +1,9 @@
 from pathlib import Path
 
-FORBIDDEN = {"gswin64c.exe", "gsdll64.dll", "pdfa_def.ps", "verapdf.jar", "java.exe"}
+FORBIDDEN = {"gswin64c.exe", "gsdll64.dll", "pdfa_def.ps"}
 
 
-def test_repository_bundles_no_external_tool_payloads() -> None:
+def test_repository_bundles_no_ghostscript_payloads() -> None:
     root = Path(__file__).resolve().parents[1]
     checked = [root / "assets", root / "src"]
     violations = [
@@ -15,8 +15,16 @@ def test_repository_bundles_no_external_tool_payloads() -> None:
     assert not violations
 
 
-def test_pyinstaller_specs_have_no_external_tool_binaries() -> None:
+def test_pyinstaller_specs_keep_ghostscript_external_and_bundle_validator() -> None:
     root = Path(__file__).resolve().parents[1]
     text = "\n".join(path.read_text(encoding="utf-8") for path in root.glob("*.spec")).casefold()
     assert "gswin64c.exe" not in text and "gsdll64.dll" not in text
-    assert "verapdf.jar" not in text and "java.exe" not in text
+    assert "vendor-stage" in text and "vendor/verapdf" in text and "vendor/jre" in text
+
+
+def test_bundled_validator_has_reproducible_preparation_and_licensing() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (root / "scripts/prepare_bundled_validator.ps1").is_file()
+    assert (root / "licenses/VERAPDF-NOTICE.txt").is_file()
+    assert (root / "licenses/MPL-2.0.txt").is_file()
+    assert (root / "licenses/TEMURIN-SOURCE-NOTICE.txt").is_file()

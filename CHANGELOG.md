@@ -11,6 +11,8 @@
 - Optional independent veraPDF PDF/A-1b validation.
 - Windows-aware veraPDF discovery, safe `verapdf.bat` execution, structured JSON report
   parsing, explicit validation states, External tools controls, and Validate now.
+- Single-file candidate bundling veraPDF Greenfield CLI 1.30.2 and Eclipse Temurin JRE
+  17.0.15+6 with licence notices and automatic local discovery; Ghostscript stays external.
 - PDF/A documentation, troubleshooting, and packaging safeguards.
 
 ### Changed

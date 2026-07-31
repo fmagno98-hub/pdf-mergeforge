@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -72,6 +73,13 @@ def build_launcher_command(launcher: Path, arguments: Iterable[str]) -> list[str
 
 
 def _run(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
+    environment = None
+    if "call" in command:
+        launcher = Path(command[command.index("call") + 1])
+        bundled_java = launcher.parent.parent / "jre" / "bin" / "java.exe"
+        if bundled_java.is_file():
+            environment = os.environ.copy()
+            environment["JAVACMD"] = str(bundled_java.resolve())
     return subprocess.run(
         command,
         capture_output=True,
@@ -80,6 +88,7 @@ def _run(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]
         check=False,
         shell=False,
         creationflags=_flags(),
+        env=environment,
     )
 
 
@@ -126,15 +135,24 @@ def _common_candidates() -> Iterable[Path]:
             yield from root.glob("veraPDF*/verapdf.bat")
 
 
+def _bundled_candidate() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "vendor" / "verapdf" / "verapdf.bat"
+    return Path(__file__).resolve().parents[3] / "vendor-stage" / "verapdf" / "verapdf.bat"
+
+
 def discover_verapdf(
     saved_path: str | Path | None = None,
     *,
     validator: Callable[[Path, str], VeraPdfInstallation] = validate_launcher,
     common_candidates: Iterable[Path] | None = None,
+    include_bundled: bool = True,
 ) -> VeraPdfInstallation | None:
     candidates: list[tuple[Path, str]] = []
     if saved_path:
         candidates.append((Path(saved_path), "saved setting"))
+    if include_bundled:
+        candidates.append((_bundled_candidate(), "bundled veraPDF 1.30.2"))
     match = shutil.which("verapdf.bat")
     if match:
         candidates.append((Path(match), "PATH"))
@@ -168,25 +186,51 @@ def parse_verapdf_json(text: str) -> tuple[bool, tuple[str, ...]]:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise VeraPdfReportError("veraPDF returned malformed JSON.") from exc
-    pairs = list(_walk(data))
-    compliance = [
-        value
-        for key, value in pairs
-        if key.casefold() in {"iscompliant", "compliant"} and isinstance(value, bool)
-    ]
-    jobs = [
-        value
-        for key, value in pairs
-        if key.casefold() in {"jobs", "validationreports"} and isinstance(value, list)
-    ]
-    if not compliance or (jobs and len(jobs[0]) == 0):
+    report = data.get("report", data) if isinstance(data, dict) else {}
+    jobs = report.get("jobs", []) if isinstance(report, dict) else []
+    if not isinstance(jobs, list) or not jobs:
         raise VeraPdfReportError("veraPDF did not return a conclusive validation job.")
+    results = [
+        result
+        for job in jobs
+        if isinstance(job, dict)
+        for result in job.get("validationResult", [])
+        if isinstance(result, dict)
+    ]
+    compliance = [result.get("compliant") for result in results]
+    profiles = [str(result.get("profileName", "")).casefold() for result in results]
+    if (
+        not compliance
+        or any(not isinstance(value, bool) for value in compliance)
+        or any("pdf/a-1b" not in profile for profile in profiles)
+    ):
+        # Retain compatibility with older structured veraPDF variants.
+        pairs = list(_walk(data))
+        compliance = [
+            value
+            for key, value in pairs
+            if key.casefold() in {"iscompliant", "compliant"} and isinstance(value, bool)
+        ]
+    if not compliance:
+        raise VeraPdfReportError("veraPDF did not return a PDF/A-1b validation result.")
     failed: list[str] = []
-    for key, value in pairs:
-        if key.casefold() in {"ruleid", "specification", "testnumber", "clause"} and isinstance(
-            value, str | int
-        ):
-            failed.append(str(value))
+    for result in results:
+        details = result.get("details", {})
+        for rule in details.get("ruleSummaries", []) if isinstance(details, dict) else []:
+            if isinstance(rule, dict) and str(rule.get("ruleStatus", "")).casefold() == "failed":
+                identifier = " / ".join(
+                    str(rule.get(key))
+                    for key in ("specification", "clause", "testNumber")
+                    if rule.get(key) is not None
+                )
+                failed.append(identifier or str(rule.get("description", "Failed rule")))
+    if not failed:
+        pairs = list(_walk(data))
+        failed.extend(
+            str(value)
+            for key, value in pairs
+            if key.casefold() == "ruleid" and isinstance(value, str | int)
+        )
     return all(compliance), tuple(dict.fromkeys(failed))[:10]
 
 
@@ -222,7 +266,7 @@ def validate_with_verapdf(
         raise VeraPdfError("veraPDF validation timed out.") from exc
     except OSError as exc:
         raise VeraPdfError("veraPDF was detected but could not be started.") from exc
-    if result.returncode != 0:
+    if result.returncode != 0 and not (result.stdout or "").strip():
         detail = (result.stderr or "").strip().splitlines()
         raise VeraPdfError(
             "veraPDF could not complete validation" + (f": {detail[-1]}" if detail else ".")

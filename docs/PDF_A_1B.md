@@ -42,14 +42,15 @@ or request administrator privileges.
 
 ## veraPDF
 
-veraPDF is an optional, separately installed validator. Baseline checks are useful
+veraPDF 1.30.2 and Eclipse Temurin JRE 17 are bundled as separately licensed components
+in the single-file candidate. Baseline checks are useful
 diagnostics but are not equivalent to standards validation. A successful veraPDF
 PDF/A-1b result gives stronger technical evidence, but the app never calls the document
 “certified”.
 
-Install veraPDF separately from its official release page. On Windows, open **External
-tools**, choose **Locate veraPDF**, and select `verapdf.bat`. Custom paths containing
-spaces or Unicode are supported. **Check again** repeats discovery; **Validate now**
+No separate veraPDF or Java installation is needed. On Windows, open **External tools**
+to inspect the detected bundled validator. A custom external `verapdf.bat` may still be
+selected; paths containing spaces or Unicode are supported. **Check again** repeats discovery; **Validate now**
 checks the last export with profile `1b` and a structured JSON report without converting
 it again.
 
@@ -59,6 +60,8 @@ it again.
 
 The batch launcher runs locally through Windows `cmd.exe` using an argument list,
 `shell=False`, a hidden console, and a timeout. PDFs and reports are never sent online.
+The bundled runtime is extracted locally by PyInstaller only for application execution.
+Ghostscript remains a separate installation.
 
 ## Limitations and preservation advice
 

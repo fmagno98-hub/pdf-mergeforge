@@ -18,3 +18,4 @@ Thumbs.db
 *.exe
 *.zip
 github-ready/
+vendor-stage/

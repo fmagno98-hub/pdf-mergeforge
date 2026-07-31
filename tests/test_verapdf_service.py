@@ -83,7 +83,7 @@ def test_discovery_ignores_stale_saved_path_and_uses_common(tmp_path: Path) -> N
 
 def test_discovery_returns_none_without_installation(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("shutil.which", lambda _: None)
-    assert discover_verapdf(common_candidates=[]) is None
+    assert discover_verapdf(common_candidates=[], include_bundled=False) is None
 
 
 @pytest.mark.parametrize("value,expected", [("true", True), ("false", False)])

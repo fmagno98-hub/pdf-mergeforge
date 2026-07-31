@@ -52,18 +52,21 @@ select the executable normally found below `C:\Program Files\gs\<version>\bin`.
 
 Conversion, baseline checks, and optional veraPDF validation all run locally. Baseline
 checks verify essential structural indicators but are not a complete standards validation.
-If a separately installed veraPDF command-line tool is available, it is used for an
-independent PDF/A-1b check. Keep the original documents: conversion can flatten
+The single-file candidate includes veraPDF 1.30.2 and an Eclipse Temurin JRE 17 as
+separately licensed third-party components. They are extracted by PyInstaller to its
+private runtime directory and used for an independent PDF/A-1b check. A manually
+selected external veraPDF remains supported. Keep the original documents: conversion can flatten
 transparency, alter unsupported features or rendering, and normally invalidates digital
 signatures. PDF/A conformance does not guarantee acceptance by every authority.
 
-veraPDF remains optional and external. Install it from the [official veraPDF
-releases](https://software.verapdf.org/releases/), open **External tools**, and select
-its official `verapdf.bat` launcher. **Validate now** checks the most recently created
+No separate veraPDF or Java installation is required in the bundled candidate.
+**External tools** shows the incorporated version and path. **Validate now** checks the most recently created
 PDF without repeating conversion. **Passed** means independent validation succeeded,
 **Not performed** means the optional validator was not detected, and **Failed** means
 veraPDF reported non-conformance. Baseline checks are safeguards, not a substitute for
-independent standards validation.
+independent standards validation. PDF MergeForge source code remains MIT; veraPDF is
+distributed under MPL 2.0+, and Eclipse Temurin under GPLv2 with the Classpath Exception.
+Ghostscript remains external because its licensing and distribution model differ.
 
 See [docs/PDF_A_1B.md](docs/PDF_A_1B.md) for setup, limitations, and troubleshooting.
 
