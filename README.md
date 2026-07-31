@@ -22,12 +22,13 @@ cloud service, Internet connection, analytics provider, or paid PDF platform.
 - PDF structure, page-count, encryption, existence, and duplicate validation.
 - Responsive background merge, cooperative cancellation, atomic temporary-file output.
 - Open the completed PDF or reveal it in Explorer.
+- Export an archival PDF/A-1b using a separately installed 64-bit Ghostscript.
 - Local-only settings and technical logs in `%LOCALAPPDATA%\PDF MergeForge\logs`.
 
 ## Download
 
 1. Open the latest GitHub Release.
-2. Download `PDF-MergeForge-v1.0.0-Windows-x64.exe`.
+2. Download the current `PDF-MergeForge-...-Windows-x64.exe` asset.
 3. Double-click the downloaded file.
 4. No installation is required.
 
@@ -36,6 +37,27 @@ Python runtime, the GUI toolkit, the PDF engine, and the application assets. Do 
 download the source-code ZIP unless you want to inspect or develop the project.
 
 Windows SmartScreen may warn because the executable is not digitally signed. The one-file build can also take a few seconds to start. Windows 10/11 x64 only.
+
+## PDF/A-1b export
+
+The **Export as PDF/A-1b** button creates an archival PDF/A part 1, conformance level B.
+This optional feature invokes a separately installed 64-bit Ghostscript command-line
+executable (`gswin64c.exe`). Ghostscript is not included in PDF MergeForge or its EXE;
+normal PDF merging continues to work without it.
+
+Install Ghostscript from the [official Ghostscript download page](https://ghostscript.com/releases/gsdnld.html).
+The app checks a saved manual location, `PATH`, and versioned folders below
+`C:\Program Files\gs`. If automatic detection fails, choose **Locate gswin64c.exe** and
+select the executable normally found below `C:\Program Files\gs\<version>\bin`.
+
+Conversion, baseline checks, and optional veraPDF validation all run locally. Baseline
+checks verify essential structural indicators but are not a complete standards validation.
+If a separately installed veraPDF command-line tool is available, it is used for an
+independent PDF/A-1b check. Keep the original documents: conversion can flatten
+transparency, alter unsupported features or rendering, and normally invalidates digital
+signatures. PDF/A conformance does not guarantee acceptance by every authority.
+
+See [docs/PDF_A_1B.md](docs/PDF_A_1B.md) for setup, limitations, and troubleshooting.
 
 ## Development
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 - local release candidate
+
+### Added
+
+- PDF/A-1b export using a separately installed Ghostscript executable.
+- Ghostscript discovery, validation, manual selection, and missing-dependency guidance.
+- Strict external conversion, deterministic cleanup, cancellation, and atomic output.
+- PDF/A baseline validation for version, encryption, page count, XMP, and OutputIntent.
+- Optional independent veraPDF PDF/A-1b validation.
+- PDF/A documentation, troubleshooting, and packaging safeguards.
+
+### Changed
+
+- Prepared local application and build metadata for version 1.1.0.
+- Updated bundled pypdf declaration to 6.14.2.
+
 ## 1.0.0 - 2026-07-27
 
 - Branded release of PDF MergeForge with application icon, in-app logo, repository artwork,
