@@ -52,14 +52,14 @@ select the executable normally found below `C:\Program Files\gs\<version>\bin`.
 
 Conversion, baseline checks, and optional veraPDF validation all run locally. Baseline
 checks verify essential structural indicators but are not a complete standards validation.
-The single-file candidate includes veraPDF 1.30.2 and an Eclipse Temurin JRE 17 as
+Release 1.1.0 includes veraPDF 1.30.2 and an Eclipse Temurin JRE 17 as
 separately licensed third-party components. They are extracted by PyInstaller to its
 private runtime directory and used for an independent PDF/A-1b check. A manually
 selected external veraPDF remains supported. Keep the original documents: conversion can flatten
 transparency, alter unsupported features or rendering, and normally invalidates digital
 signatures. PDF/A conformance does not guarantee acceptance by every authority.
 
-No separate veraPDF or Java installation is required in the bundled candidate.
+No separate veraPDF or Java installation is required in release 1.1.0.
 **External tools** shows the incorporated version and path. **Validate now** checks the most recently created
 PDF without repeating conversion. **Passed** means independent validation succeeded,
 **Not performed** means the optional validator was not detected, and **Failed** means
@@ -115,3 +115,7 @@ legally controlling warranty and liability disclaimer is in `LICENSE`.
 
 Third-party components and their license notices are documented in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The repository's `LICENSE` applies only to PDF MergeForge source code. It does not
+relicense veraPDF, Eclipse Temurin, Ghostscript, PySide6, pypdf, or other third-party
+components. Their controlling terms and source links are listed separately.
