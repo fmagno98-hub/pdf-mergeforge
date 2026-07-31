@@ -9,6 +9,10 @@ PDF MergeForge is a fast, portable Windows 10/11 x64 application for ordering,
 validating, and safely combining PDF files. It does not need an account, API key,
 cloud service, Internet connection, analytics provider, or paid PDF platform.
 
+The core purpose remains deliberately simple: **merge PDFs locally**. Release 1.1.0
+adds a second tool for users who also need to create and independently validate a
+PDF/A-1b archival copy.
+
 ![PDF MergeForge desktop interface](assets/pdf-mergeforge-app.png)
 
 ![PDF MergeForge brand](assets/pdf-mergeforge-brand.png)
@@ -67,6 +71,31 @@ veraPDF reported non-conformance. Baseline checks are safeguards, not a substitu
 independent standards validation. PDF MergeForge source code remains MIT; veraPDF is
 distributed under MPL 2.0+, and Eclipse Temurin under GPLv2 with the Classpath Exception.
 Ghostscript remains external because its licensing and distribution model differ.
+
+### How the two PDF/A tools are used
+
+| Component | Purpose | Included in the EXE? | Licence |
+| --- | --- | --- | --- |
+| Ghostscript | Converts the locally merged PDF into PDF/A-1b | No; install separately | Artifex AGPL or commercial terms |
+| veraPDF 1.30.2 | Independently validates the result against profile PDF/A-1b | Yes | MPL 2.0 or later |
+
+The bundled veraPDF command runs on the bundled Eclipse Temurin JRE 17, licensed
+under GPLv2 with the Classpath Exception. These components remain separate from the
+MIT-licensed PDF MergeForge source code. See [Licensing](docs/LICENSING.md) for the
+complete distribution model and source links.
+
+### Example use case: documents for the Agenzia delle Entrate
+
+PDF/A is sometimes requested in Italian administrative, tax, accounting, archival,
+or electronic-submission workflows. PDF MergeForge can help combine source documents,
+produce a PDF/A-1b copy, and validate its technical conformance locally before a user
+uploads it through an official Agenzia delle Entrate channel.
+
+This is an example workflow, not an assurance of acceptance. The Agenzia delle Entrate
+may require a different PDF/A profile, file size, naming convention, signature format,
+envelope, or portal-specific rule. Always check the instructions for the exact service,
+keep the original documents, visually inspect the result, and apply required digital
+signatures only in the prescribed order.
 
 See [docs/PDF_A_1B.md](docs/PDF_A_1B.md) for setup, limitations, and troubleshooting.
 

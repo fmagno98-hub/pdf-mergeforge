@@ -16,6 +16,11 @@ PDF/A processing remains local: pypdf merges, the separately installed Ghostscri
 creates PDF/A-1b, baseline checks inspect the result, and bundled veraPDF validates it
 against profile `1b`. No PDF or validation report is uploaded.
 
+One possible use case is preparing a combined archival document before submitting it
+through an official Agenzia delle Entrate workflow. Technical PDF/A-1b conformance does
+not guarantee acceptance: users must follow the current rules of the specific service,
+including any signature, size, naming, or profile requirements.
+
 ## Licensing
 
 - PDF MergeForge source code: MIT License.

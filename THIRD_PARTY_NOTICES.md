@@ -25,7 +25,7 @@ The MIT License of PDF MergeForge does not apply to Ghostscript.
 
 ## veraPDF
 
-The single-file candidate bundles veraPDF Greenfield CLI 1.30.2 for independent PDF/A
+The PDF MergeForge 1.1.0 Windows executable bundles veraPDF Greenfield CLI 1.30.2 for independent PDF/A
 validation and Eclipse Temurin JRE 17.0.15+6 to run it. These are separate third-party
 components and remain subject to their own licences. The MIT
 License of PDF MergeForge does not apply to veraPDF.
@@ -37,3 +37,6 @@ veraPDF is distributed under MPL 2.0 or later. Eclipse Temurin is distributed un
 GPLv2 with the Classpath Exception. Complete notices, source links, the Temurin `legal`
 directory, and the relevant licence text are included in `licenses` and in the bundled
 runtime. Ghostscript is not bundled.
+
+For the complete component-by-component distribution model and exact source links,
+see [`docs/LICENSING.md`](docs/LICENSING.md).
