@@ -1,0 +1,12 @@
+Bundled third-party runtime: Eclipse Temurin JRE 17.0.15+6, Windows x64
+Implementor: Eclipse Adoptium
+
+The runtime is a separate component, not part of the MIT-licensed PDF MergeForge
+source code. Eclipse Temurin is provided under GPL version 2 with the Classpath
+Exception. The runtime's complete `legal` directory and NOTICE file are included.
+
+Runtime source repository: https://github.com/adoptium/jdk17u.git
+Build source repository: https://github.com/adoptium/temurin-build.git
+Project: https://adoptium.net/
+
+PDF MergeForge does not modify the runtime binaries.

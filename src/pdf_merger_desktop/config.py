@@ -3,7 +3,7 @@ from pathlib import Path
 
 APP_NAME = "PDF MergeForge"
 ORGANIZATION = "PDF MergeForge"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 def resource_path(relative: str) -> Path:

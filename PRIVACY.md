@@ -12,6 +12,17 @@ PDF MergeForge processes documents entirely on the user's Windows computer.
 - Deletes the temporary output after cancellation or failure.
 - Stores only window geometry and the last open/save folders in local `QSettings`.
 - Stores technical error logs locally under `%LOCALAPPDATA%\PDF MergeForge\logs`.
+- For optional PDF/A export, executes a separately installed Ghostscript process locally.
+- Executes the bundled or manually selected veraPDF validator locally.
+- Stores only manually selected external-tool paths in local `QSettings`.
+
+Ghostscript and veraPDF operate on local files through locally installed command-line
+applications. PDF MergeForge does not upload documents to Ghostscript, Artifex,
+veraPDF, or any other server.
+
+In the single-file build, PyInstaller extracts the bundled veraPDF and Eclipse Temurin
+files into its private local runtime directory. They process only the local PDF path and
+do not perform validation through an online service.
 
 ## What the application does not do
 
@@ -19,9 +30,13 @@ PDF MergeForge processes documents entirely on the user's Windows computer.
 - No HTTP requests, sockets, remote APIs, accounts, subscriptions, or API keys.
 - No analytics, advertising, telemetry, tracking, or automatic updates.
 - No document contents or file history are sent anywhere.
+- The official Ghostscript download page opens only after an explicit user click. No
+  document names, paths, metadata, logs, or statistics are transmitted by the app.
 
 The portable executable includes the Python runtime, PySide6, pypdf, application
-code, and brand assets required to run offline. Internet access is not required.
+code, and brand assets required for normal merging. Ghostscript, veraPDF, Java, ICC
+profiles, and their resources are not bundled. Internet access is not required for
+processing; the browser is opened only when the user requests an official download page.
 
 ## User responsibility
 

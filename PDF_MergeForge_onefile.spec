@@ -8,12 +8,17 @@ a = Analysis(
     [str(root / "run_app.py")],
     pathex=[str(root / "src")],
     binaries=[],
-    datas=[(str(root / "assets"), "assets")],
+    datas=[
+        (str(root / "assets"), "assets"),
+        (str(root / "vendor-stage" / "verapdf"), "vendor/verapdf"),
+        (str(root / "vendor-stage" / "jre"), "vendor/jre"),
+        (str(root / "licenses"), "licenses"),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["ghostscript"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -23,7 +28,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="PDF MergeForge",
+    name="PDF-MergeForge-v1.1.0-Windows-x64",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

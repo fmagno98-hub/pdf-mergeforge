@@ -1,5 +1,5 @@
 import os
-import tempfile
+import uuid
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -73,11 +73,9 @@ def merge_pdfs(
     destination = ensure_pdf_suffix(Path(output).resolve())
     destination.parent.mkdir(parents=True, exist_ok=True)
     items = validate_sources(sources, destination)
-    fd, temp_name = tempfile.mkstemp(
-        prefix=f".{destination.stem}-", suffix=".tmp", dir=destination.parent
-    )
-    os.close(fd)
-    temporary = Path(temp_name)
+    temporary = destination.parent / f".{destination.stem}-{uuid.uuid4().hex}.tmp"
+    with temporary.open("xb"):
+        pass
     total_pages = 0
     try:
         writer = PdfWriter()

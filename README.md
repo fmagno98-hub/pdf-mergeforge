@@ -9,6 +9,10 @@ PDF MergeForge is a fast, portable Windows 10/11 x64 application for ordering,
 validating, and safely combining PDF files. It does not need an account, API key,
 cloud service, Internet connection, analytics provider, or paid PDF platform.
 
+The core purpose remains deliberately simple: **merge PDFs locally**. Release 1.1.0
+adds a second tool for users who also need to create and independently validate a
+PDF/A-1b archival copy.
+
 ![PDF MergeForge desktop interface](assets/pdf-mergeforge-app.png)
 
 ![PDF MergeForge brand](assets/pdf-mergeforge-brand.png)
@@ -22,12 +26,13 @@ cloud service, Internet connection, analytics provider, or paid PDF platform.
 - PDF structure, page-count, encryption, existence, and duplicate validation.
 - Responsive background merge, cooperative cancellation, atomic temporary-file output.
 - Open the completed PDF or reveal it in Explorer.
+- Export an archival PDF/A-1b using a separately installed 64-bit Ghostscript.
 - Local-only settings and technical logs in `%LOCALAPPDATA%\PDF MergeForge\logs`.
 
 ## Download
 
 1. Open the latest GitHub Release.
-2. Download `PDF-MergeForge-v1.0.0-Windows-x64.exe`.
+2. Download the current `PDF-MergeForge-...-Windows-x64.exe` asset.
 3. Double-click the downloaded file.
 4. No installation is required.
 
@@ -36,6 +41,63 @@ Python runtime, the GUI toolkit, the PDF engine, and the application assets. Do 
 download the source-code ZIP unless you want to inspect or develop the project.
 
 Windows SmartScreen may warn because the executable is not digitally signed. The one-file build can also take a few seconds to start. Windows 10/11 x64 only.
+
+## PDF/A-1b export
+
+The **Export as PDF/A-1b** button creates an archival PDF/A part 1, conformance level B.
+This optional feature invokes a separately installed 64-bit Ghostscript command-line
+executable (`gswin64c.exe`). Ghostscript is not included in PDF MergeForge or its EXE;
+normal PDF merging continues to work without it.
+
+Install Ghostscript from the [official Ghostscript download page](https://ghostscript.com/releases/gsdnld.html).
+The app checks a saved manual location, `PATH`, and versioned folders below
+`C:\Program Files\gs`. If automatic detection fails, choose **Locate gswin64c.exe** and
+select the executable normally found below `C:\Program Files\gs\<version>\bin`.
+
+Conversion, baseline checks, and optional veraPDF validation all run locally. Baseline
+checks verify essential structural indicators but are not a complete standards validation.
+Release 1.1.0 includes veraPDF 1.30.2 and an Eclipse Temurin JRE 17 as
+separately licensed third-party components. They are extracted by PyInstaller to its
+private runtime directory and used for an independent PDF/A-1b check. A manually
+selected external veraPDF remains supported. Keep the original documents: conversion can flatten
+transparency, alter unsupported features or rendering, and normally invalidates digital
+signatures. PDF/A conformance does not guarantee acceptance by every authority.
+
+No separate veraPDF or Java installation is required in release 1.1.0.
+**External tools** shows the incorporated version and path. **Validate now** checks the most recently created
+PDF without repeating conversion. **Passed** means independent validation succeeded,
+**Not performed** means the optional validator was not detected, and **Failed** means
+veraPDF reported non-conformance. Baseline checks are safeguards, not a substitute for
+independent standards validation. PDF MergeForge source code remains MIT; veraPDF is
+distributed under MPL 2.0+, and Eclipse Temurin under GPLv2 with the Classpath Exception.
+Ghostscript remains external because its licensing and distribution model differ.
+
+### How the two PDF/A tools are used
+
+| Component | Purpose | Included in the EXE? | Licence |
+| --- | --- | --- | --- |
+| Ghostscript | Converts the locally merged PDF into PDF/A-1b | No; install separately | Artifex AGPL or commercial terms |
+| veraPDF 1.30.2 | Independently validates the result against profile PDF/A-1b | Yes | MPL 2.0 or later |
+
+The bundled veraPDF command runs on the bundled Eclipse Temurin JRE 17, licensed
+under GPLv2 with the Classpath Exception. These components remain separate from the
+MIT-licensed PDF MergeForge source code. See [Licensing](docs/LICENSING.md) for the
+complete distribution model and source links.
+
+### Example use case: documents for the Agenzia delle Entrate
+
+PDF/A is sometimes requested in Italian administrative, tax, accounting, archival,
+or electronic-submission workflows. PDF MergeForge can help combine source documents,
+produce a PDF/A-1b copy, and validate its technical conformance locally before a user
+uploads it through an official Agenzia delle Entrate channel.
+
+This is an example workflow, not an assurance of acceptance. The Agenzia delle Entrate
+may require a different PDF/A profile, file size, naming convention, signature format,
+envelope, or portal-specific rule. Always check the instructions for the exact service,
+keep the original documents, visually inspect the result, and apply required digital
+signatures only in the prescribed order.
+
+See [docs/PDF_A_1B.md](docs/PDF_A_1B.md) for setup, limitations, and troubleshooting.
 
 ## Development
 
@@ -82,3 +144,7 @@ legally controlling warranty and liability disclaimer is in `LICENSE`.
 
 Third-party components and their license notices are documented in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The repository's `LICENSE` applies only to PDF MergeForge source code. It does not
+relicense veraPDF, Eclipse Temurin, Ghostscript, PySide6, pypdf, or other third-party
+components. Their controlling terms and source links are listed separately.
