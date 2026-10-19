@@ -1,0 +1,17 @@
+Bundled third-party component: veraPDF Greenfield CLI 1.30.2
+Copyright (c) veraPDF Consortium and its contributors.
+
+veraPDF is distributed as a separate covered component under the Mozilla Public
+License 2.0 or later. It is not part of the MIT-licensed PDF MergeForge source code.
+No veraPDF source file was modified for this bundle.
+
+Binary source: official verapdf-greenfield-1.30.2-installer.zip
+Official download: https://software.verapdf.org/rel/1.30/
+Source code: https://github.com/veraPDF/veraPDF-apps
+Library source: https://github.com/veraPDF/veraPDF-library
+Validation profiles: https://github.com/veraPDF/veraPDF-validation-profiles
+License: https://www.mozilla.org/MPL/2.0/
+
+The included MPL-2.0.txt contains the complete MPL 2.0 license text as shipped in
+the veraPDF CLI dependency archive. Additional third-party notices remain embedded
+inside the original veraPDF JAR.
