@@ -1,5 +1,6 @@
 """Local PDF-to-DOCX conversion using pypdf and standard-library OOXML."""
 
+from contextlib import suppress
 import math
 import os
 import re
@@ -124,10 +125,8 @@ def _page_text_style(page) -> tuple[str | None, bool, bool, int | None]:
         counts[resource] += count
         sizes[(resource, points)] += count
 
-    try:
+    with suppress(KeyError, TypeError, ValueError):
         page.extract_text(visitor_text=collect)
-    except (KeyError, TypeError, ValueError):
-        pass
     if not counts:
         return None, False, False, None
     dominant = counts.most_common(1)[0][0]
