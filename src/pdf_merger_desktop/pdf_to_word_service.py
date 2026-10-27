@@ -1,6 +1,5 @@
 """Local PDF-to-DOCX conversion using pypdf and standard-library OOXML."""
 
-from contextlib import suppress
 import math
 import os
 import re
@@ -8,6 +7,7 @@ import struct
 import uuid
 from collections import Counter
 from collections.abc import Callable, Sequence
+from contextlib import suppress
 from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 from zipfile import ZIP_DEFLATED, ZipFile
