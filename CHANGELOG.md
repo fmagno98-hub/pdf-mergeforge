@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0 - 2026-10-26
+
+### Added
+
+- Added a **Convert to Word** button and `Ctrl+W` shortcut.
+- Added local PDF-to-DOCX extraction of selectable text and embedded images. Conversion no longer launches Microsoft Word or rasterizes entire pages.
+- Added a layout-text option that keeps extracted text editable while approximating its original spacing.
+- Converted common PDF bullet and numbered markers to native Word lists and applied embedded font metadata to extracted text.
+- Added page progress, cancellation, and atomic output for Word conversion.
+- Documents without a text layer are clearly marked instead of being uploaded or processed online.
+
+### Licensing
+
+- Kept PDF MergeForge source code under MIT.
+- Kept the MIT source license and avoided adding copyleft dependencies; the converter uses pypdf and the Python standard library.
 ## 1.2.0 - 2026-10-19
 
 ### Added

@@ -6,6 +6,11 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+try:
+    import winreg
+except ImportError:  # pragma: no cover - Windows-only discovery
+    winreg = None
+
 
 class GhostscriptError(RuntimeError):
     """Base class for user-safe Ghostscript failures."""
@@ -86,9 +91,46 @@ def _program_files_candidates(roots: Iterable[Path]) -> list[Path]:
     for root in roots:
         gs_root = root / "gs"
         if gs_root.is_dir():
-            found.extend(gs_root.glob("gs*/bin/gswin64c.exe"))
+            found.extend(
+                path
+                for path in gs_root.rglob("gswin64c.exe")
+                if path.parent.name.casefold() == "bin"
+            )
     return found
 
+
+def _registry_candidates() -> list[Path]:
+    """Find Ghostscript installations registered by their Windows installers."""
+    if winreg is None or os.name != "nt":
+        return []
+    locations: list[Path] = []
+    uninstall_roots = (
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        (
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+        ),
+        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+    )
+    for hive, root_name in uninstall_roots:
+        try:
+            with winreg.OpenKey(hive, root_name) as root:
+                for index in range(winreg.QueryInfoKey(root)[0]):
+                    try:
+                        subkey_name = winreg.EnumKey(root, index)
+                        with winreg.OpenKey(root, subkey_name) as subkey:
+                            display_name = str(winreg.QueryValueEx(subkey, "DisplayName")[0])
+                            if "ghostscript" not in display_name.casefold():
+                                continue
+                            install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                            if install_location:
+                                base = Path(str(install_location))
+                                locations.extend(base.rglob("gswin64c.exe"))
+                    except (OSError, TypeError):
+                        continue
+        except OSError:
+            continue
+    return [path for path in locations if path.parent.name.casefold() == "bin"]
 
 def discover_ghostscript(
     saved_path: str | Path | None = None,
@@ -107,11 +149,18 @@ def discover_ghostscript(
         None,
         map(
             lambda value: Path(value) if value else None,
-            (os.getenv("PROGRAMFILES"), os.getenv("PROGRAMW6432")),
+            (
+                os.getenv("PROGRAMFILES"),
+                os.getenv("PROGRAMW6432"),
+                os.getenv("PROGRAMFILES(X86)"),
+                "C:\\Program Files",
+                "C:\\Program Files (x86)",
+            ),
         ),
     )
     roots = list(default_roots if program_files is None else program_files)
     candidates.extend((path, "Program Files") for path in _program_files_candidates(roots))
+    candidates.extend((path, "Windows registry") for path in _registry_candidates())
     valid: list[GhostscriptInstallation] = []
     seen: set[str] = set()
     for path, source in candidates:

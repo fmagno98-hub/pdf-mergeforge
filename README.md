@@ -2,12 +2,13 @@
 
 ![PDF MergeForge](assets/pdf-mergeforge-banner.png)
 
-**Merge PDFs completely on your own computer - no uploads, no subscription, no
-provider fees, and no loss of document privacy.**
+**Merge, organize, archive, and convert PDFs on your own computer - with no
+uploads, subscriptions, provider fees, or loss of document privacy.**
 
-PDF MergeForge is a fast, portable Windows 10/11 x64 application for ordering,
-validating, and safely combining PDF files. It does not need an account, API key,
-cloud service, Internet connection, analytics provider, or paid PDF platform.
+PDF MergeForge is a portable Windows 10/11 x64 desktop application for ordering
+and merging PDFs, exporting archival PDF/A-1b files, and converting PDFs into
+editable Word documents. All document processing runs locally; no account, API,
+cloud service, or Internet connection is required.
 
 ![PDF MergeForge desktop interface](assets/pdf-mergeforge-app.png)
 
@@ -24,7 +25,16 @@ cloud service, Internet connection, analytics provider, or paid PDF platform.
 - Optional output-length limit that keeps only the first selected number of pages.
 - Open the completed PDF or reveal it in Explorer.
 - Export an archival PDF/A-1b using a separately installed 64-bit Ghostscript.
+- Convert ordered PDFs to editable Word `.docx` files; recognize common bullet and numbered lists, read embedded font metadata, and preserve image proportions without flattening whole pages.
 - Local-only settings and technical logs in `%LOCALAPPDATA%\PDF MergeForge\logs`.
+
+## Convert PDF to Word
+
+1. Add and order one or more PDFs.
+2. Choose **Convert to Word** or press **Ctrl+W**.
+3. Select a `.docx` destination.
+
+**Preserve original layout** uses pypdf layout extraction to keep text positioning more closely aligned while keeping text editable. Common PDF bullet symbols and typed numbering are converted into native, editable Word lists. When the PDF embeds TrueType fonts, the converter reads their family, weight, and dominant point size and applies that style to the extracted page text. Embedded images retain their proportions and are placed after the page text. Conversion runs locally without Microsoft Word automation or Ghostscript. Font styling and complex columns or tables remain approximate, and scanned pages without a text layer are marked because OCR is not bundled.
 
 ## Limit the output length
 
@@ -65,14 +75,14 @@ select the executable normally found below `C:\Program Files\gs\<version>\bin`.
 
 Conversion, baseline checks, and optional veraPDF validation all run locally. Baseline
 checks verify essential structural indicators but are not a complete standards validation.
-Release 1.2.0 includes veraPDF 1.30.2 and an Eclipse Temurin JRE 17 as
+Release 1.3.0 includes veraPDF 1.30.2 and an Eclipse Temurin JRE 17 as
 separately licensed third-party components. They are extracted by PyInstaller to its
 private runtime directory and used for an independent PDF/A-1b check. A manually
 selected external veraPDF remains supported. Keep the original documents: conversion can flatten
 transparency, alter unsupported features or rendering, and normally invalidates digital
 signatures. PDF/A conformance does not guarantee acceptance by every authority.
 
-No separate veraPDF or Java installation is required in release 1.2.0.
+No separate veraPDF or Java installation is required in release 1.3.0.
 **External tools** shows the incorporated version and path. **Validate now** checks the most recently created
 PDF without repeating conversion. **Passed** means independent validation succeeded,
 **Not performed** means the optional validator was not detected, and **Failed** means
@@ -95,9 +105,31 @@ py -3.12 -m venv .venv
 
 Build a diagnostic directory with `build_onedir.bat`, then the portable executable with `build_onefile.bat`. `build_release.ps1` runs quality checks, both builds, and prepares the release files.
 
-The source is under `src/pdf_merger_desktop`, tests under `tests`, and packaging scripts/specifications are in the repository root. Cancellation takes effect between source PDFs and immediately before writing; a very large current PDF page sequence may take time to finish.
+## Repository layout
 
-## Why local PDF merging matters
+```text
+assets/                          Application icon and project artwork
+docs/                            PDF/A setup and troubleshooting
+release/v1.3.0/                  Release notes, checksum, and local Windows EXE
+scripts/                         Build, release, checksum, and validation helpers
+src/pdf_merger_desktop/          Application source
+  services/                      Ghostscript and PDF/A services
+  utilities/                      Shared helpers
+  widgets/                        Reusable interface widgets
+  pdf_to_word_service.py          Editable PDF-to-DOCX conversion
+  word_worker.py                  Background Word-conversion worker
+tests/                            Application and conversion tests
+pyproject.toml                    Package metadata and Python dependencies
+build_release.ps1                 Release checks and packaging
+```
+
+The `.exe` in `release/v1.3.0/` is a local release asset and is excluded from Git by
+`.gitignore`; attach it to a GitHub Release separately. The release folder keeps the
+versioned notes and SHA-256 checksum alongside the local binary. Cancellation takes
+effect between source PDFs and immediately before writing; a very large current PDF
+page sequence may take time to finish.
+
+## Why local PDF processing matters
 
 Many online PDF services require users to upload contracts, forms, reports, personal
 records, or other confidential documents to a third-party server. Some add usage
@@ -106,7 +138,7 @@ limits, subscriptions, provider fees, advertising, or account requirements.
 PDF MergeForge takes a simpler approach:
 
 - Your documents stay on your Windows computer.
-- The merge is performed by the `pypdf` library bundled inside the executable.
+- PDF merging and PDF-to-Word extraction run locally using the bundled `pypdf` library.
 - No document is uploaded, transmitted, synchronized, or remotely analysed.
 - There are no subscriptions, per-document charges, API fees, or usage limits.
 - The application remains usable without an Internet connection.
@@ -123,7 +155,7 @@ artwork are separately protected under [BRAND_LICENSE.md](BRAND_LICENSE.md).
 
 The software is provided **as-is, without warranty**. Use it at your own risk. Users
 are responsible for backups, selecting the correct files and destination, verifying
-the resulting PDF, and complying with applicable laws and document rights. The
+the resulting PDF or Word document, and complying with applicable laws and document rights. The
 legally controlling warranty and liability disclaimer is in `LICENSE`.
 
 Third-party components and their license notices are documented in

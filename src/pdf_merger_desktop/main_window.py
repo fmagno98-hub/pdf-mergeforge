@@ -48,6 +48,7 @@ from .utilities.formatting import format_bytes
 from .utilities.natural_sort import natural_key
 from .utilities.paths import ensure_pdf_suffix, normalized_windows_path
 from .widgets.drop_area import DropArea
+from .word_worker import WordWorker
 
 DATA_ROLE = Qt.ItemDataRole.UserRole
 
@@ -81,7 +82,7 @@ class MainWindow(QMainWindow):
         self.items: list[PdfFileItem] = []
         self.last_output: Path | None = None
         self.thread: QThread | None = None
-        self.worker: MergeWorker | PdfAWorker | None = None
+        self.worker: MergeWorker | PdfAWorker | WordWorker | None = None
         self.merging = False
         self.setWindowTitle(APP_NAME)
         self.resize(1040, 680)
@@ -269,6 +270,20 @@ class MainWindow(QMainWindow):
         limit_row.addStretch()
         action_layout.addLayout(limit_row, 3, 0, 1, 3)
 
+        self.word_layout_check = QCheckBox("Preserve original layout")
+        self.word_layout_check.setChecked(
+            bool(self.settings.value("word/preserve_layout", True, type=bool))
+        )
+        self.word_layout_check.setToolTip(
+            "Arrange extracted text to resemble the PDF while keeping it editable. "
+            "Images keep their proportions. No full-page screenshots, Word automation, "
+            "or Ghostscript are used."
+        )
+        self.word_layout_check.toggled.connect(
+            lambda value: self.settings.setValue("word/preserve_layout", value)
+        )
+        action_layout.addWidget(self.word_layout_check, 4, 0, 1, 3)
+
         self.merge_button = self._button("Merge PDF files", self.choose_output, True)
         self.merge_button.setMinimumSize(250, 54)
         self.merge_button.setToolTip("Choose an output file and start merging (Ctrl+M)")
@@ -278,9 +293,13 @@ class MainWindow(QMainWindow):
         self.pdfa_button.setToolTip(
             "Create an archival PDF/A-1b using a separately installed Ghostscript"
         )
+        self.word_button = self._button("Convert to Word", self.choose_word_output)
+        self.word_button.setObjectName("word")
+        self.word_button.setMinimumSize(250, 54)
+        self.word_button.setToolTip("Convert to Word with the selected visual fidelity mode")
         self.cancel_button = self._button("Cancel", self.cancel_merge)
         self.cancel_button.setObjectName("danger")
-        self.open_button = self._button("Open PDF", self.open_pdf)
+        self.open_button = self._button("Open output", self.open_pdf)
         self.folder_button = self._button("Open folder", self.open_folder)
         result_buttons = QHBoxLayout()
         result_buttons.addWidget(self.cancel_button)
@@ -291,6 +310,7 @@ class MainWindow(QMainWindow):
         export_buttons.addWidget(self.merge_button, 2)
         export_buttons.addWidget(self.pdfa_button, 1)
         action_layout.addLayout(export_buttons, 1, 1, 2, 2)
+        action_layout.addWidget(self.word_button, 3, 1, 1, 2)
 
         layout.addWidget(header)
         layout.addWidget(workspace, 1)
@@ -349,6 +369,9 @@ class MainWindow(QMainWindow):
             QPushButton#pdfa:disabled { color: #5D708A; background: #0D1A2D;
                 border-color: #1A2A40; }
             QPushButton#accent { color: #061328; background: #25D5E5; border-color: #63EFF5; }
+            QPushButton#word { color: #061328; background: #8BD3FF;
+                border-color: #B9E6FF; font-size: 14px; font-weight: 700; }
+            QPushButton#word:hover { background: #B9E6FF; }
             QPushButton#accent:hover { background: #51E4EF; border-color: #9CF7FA; }
             QPushButton#danger { color: #FF9B8A; }
             QPushButton#danger:disabled { color: #5D708A; background: #0D1A2D;
@@ -368,6 +391,7 @@ class MainWindow(QMainWindow):
             ("Alt+Down", self.move_down),
             ("Ctrl+M", self.choose_output),
             ("Ctrl+Shift+M", self.choose_pdfa_output),
+            ("Ctrl+W", self.choose_word_output),
             ("Escape", self.cancel_merge),
             ("Ctrl+Q", self.close),
         ):
@@ -534,6 +558,73 @@ class MainWindow(QMainWindow):
         self.settings.setValue("last_save_dir", str(output.parent))
         self._start_pdfa(output)
 
+    def choose_word_output(self) -> None:
+        if self.merging or not self.items:
+            return
+        start = str(
+            Path(self.settings.value("last_save_dir", str(Path.home()))) / "converted.docx"
+        )
+        raw, _ = QFileDialog.getSaveFileName(
+            self, "Save Word document", start, "Word documents (*.docx)"
+        )
+        if not raw:
+            return
+        output = Path(raw).with_suffix(".docx")
+        if output.exists() and QMessageBox.question(
+            self, "Overwrite file", f"Replace {output.name}?"
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.settings.setValue("last_save_dir", str(output.parent))
+        self._start_word(output)
+
+    def _start_word(self, output: Path) -> None:
+        invalid = [validate_pdf(item.path) for item in self.items]
+        bad = next((item for item in invalid if not item.is_valid), None)
+        if bad:
+            QMessageBox.warning(self, "Cannot convert to Word", f"{bad.name}: {bad.error}")
+            return
+        preserve_layout = self.word_layout_check.isChecked()
+        ghostscript_path = str(self.settings.value("external_tools/ghostscript_path", "")) or None
+        self.merging = True
+        self.last_output = None
+        self.progress.setRange(0, 0)
+        self.progress.show()
+        self._refresh()
+        self.thread = QThread(self)
+        self.worker = WordWorker(
+            [item.path for item in self.items], output, preserve_layout, ghostscript_path
+        )
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.progress.connect(self._word_progress)
+        self.worker.completed.connect(self._word_completed)
+        self.worker.failed.connect(self._word_failed)
+        self.worker.cancelled.connect(self._merge_cancelled)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self._thread_finished)
+        self.thread.start()
+
+    def _word_progress(self, current: int, total: int, name: str) -> None:
+        if self.progress.maximum() != total:
+            self.progress.setRange(0, total)
+        self.progress.setValue(current)
+        self.statusBar().showMessage(f"Converting {current} of {total}: {name}")
+
+    def _word_completed(self, output: str, pages: int, images: int) -> None:
+        self.last_output = Path(output)
+        QMessageBox.information(
+            self,
+            "Word conversion completed",
+            f"Created: {self.last_output.name}\\n{self.last_output}\\n\\n"
+            f"{pages} page(s), {images} embedded image(s).",
+        )
+        self.statusBar().showMessage("Word conversion completed successfully")
+
+    def _word_failed(self, message: str) -> None:
+        logging.error("Word conversion failed: %s", message)
+        QMessageBox.critical(self, "Word conversion failed", message)
+        self.statusBar().showMessage("Word conversion failed")
     def _ensure_ghostscript(self):
         saved = self.settings.value("external_tools/ghostscript_path", "")
         try:
@@ -542,12 +633,14 @@ class MainWindow(QMainWindow):
                 self.settings.remove("external_tools/ghostscript_path")
             return installation
         except GhostscriptNotFoundError:
+            QDesktopServices.openUrl(QUrl("https://ghostscript.com/releases/gsdnld.html"))
             dialog = QMessageBox(self)
             dialog.setIcon(QMessageBox.Icon.Information)
             dialog.setWindowTitle("Ghostscript required")
-            dialog.setText("PDF/A-1b export requires a separately installed copy of Ghostscript.")
+            dialog.setText("This operation requires a separately installed copy of Ghostscript.")
             dialog.setInformativeText(
-                "Ghostscript is not included with PDF MergeForge and is distributed under its "
+                "Ghostscript is required for PDF/A export. "
+                "It is not included with PDF MergeForge and is distributed under its "
                 "own licence. Normal PDF merging remains available without Ghostscript."
             )
             download = dialog.addButton("Download Ghostscript", QMessageBox.ButtonRole.ActionRole)
@@ -851,6 +944,7 @@ class MainWindow(QMainWindow):
             self.down_button,
             self.merge_button,
             self.pdfa_button,
+            self.word_button,
         ):
             button.setEnabled(not self.merging)
         self.remove_button.setEnabled(selected and not self.merging)
@@ -859,6 +953,7 @@ class MainWindow(QMainWindow):
         self.down_button.setEnabled(selected and not self.merging)
         self.merge_button.setEnabled(valid and not self.merging)
         self.pdfa_button.setEnabled(valid and not self.merging)
+        self.word_button.setEnabled(valid and not self.merging)
         self.cancel_button.setEnabled(self.merging)
         self.open_button.setEnabled(self.last_output is not None and not self.merging)
         self.folder_button.setEnabled(self.last_output is not None and not self.merging)
